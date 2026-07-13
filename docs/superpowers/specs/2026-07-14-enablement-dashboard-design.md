@@ -133,6 +133,6 @@ Upsert statement: `INSERT ... ON CONFLICT (email, course_title) DO UPDATE`.
 
 ## Deployment
 
-- New GitHub repository (working name: `enablement-dashboard`).
+- New GitHub repository (working name: `course-completion-dashboard`).
 - Cloudflare Worker with static assets + D1 binding, deployed via `wrangler deploy`.
 - Free tier throughout (D1 free tier: 5 GB storage, 5M reads/day — orders of magnitude above this app's needs).
