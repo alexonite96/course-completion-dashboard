@@ -2,7 +2,7 @@ CREATE TABLE enrollments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
-  email TEXT NOT NULL,
+  email TEXT NOT NULL COLLATE NOCASE,
   job_assignment TEXT,
   course_title TEXT NOT NULL,
   course_start_date TEXT,
