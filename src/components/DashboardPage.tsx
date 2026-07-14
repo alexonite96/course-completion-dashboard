@@ -15,12 +15,15 @@ export default function DashboardPage({ course, rows, lastUpload, onUploadClick 
   const breakdown = managerBreakdown(rows);
 
   const exportPending = () => {
-    const blob = new Blob([pendingCsv(rows)], { type: 'text/csv' });
+    const blob = new Blob(['﻿' + pendingCsv(rows)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `pending-${course || 'course'}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (
@@ -36,7 +39,8 @@ export default function DashboardPage({ course, rows, lastUpload, onUploadClick 
             <ManagerChart breakdown={breakdown} />
             <button
               onClick={exportPending}
-              className="rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+              disabled={stats.pending === 0}
+              className="rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ⬇ Export pending list ({stats.pending})
             </button>
