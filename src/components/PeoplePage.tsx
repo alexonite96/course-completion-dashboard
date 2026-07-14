@@ -74,8 +74,8 @@ export default function PeoplePage({ rows }: { rows: Enrollment[] }) {
               <tr key={r.id} className="border-b border-slate-100 last:border-0">
                 <td className="px-3 py-2 font-medium text-slate-800">{r.firstName} {r.lastName}</td>
                 <td className="px-3 py-2 text-slate-500">{r.email}</td>
-                <td className="px-3 py-2 text-slate-600">{r.jobAssignment}</td>
-                <td className="px-3 py-2 text-slate-600">{r.manager}</td>
+                <td className="px-3 py-2 text-slate-600">{r.jobAssignment ?? '—'}</td>
+                <td className="px-3 py-2 text-slate-600">{r.manager ?? '—'}</td>
                 <td className="px-3 py-2">
                   {r.courseCompletionDate ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
