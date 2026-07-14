@@ -6,6 +6,8 @@ import PeoplePage from './components/PeoplePage';
 import Sidebar from './components/Sidebar';
 import UploadModal from './components/UploadModal';
 
+const errMessage = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong');
+
 export default function App() {
   const [page, setPage] = useState<'dashboard' | 'people'>('dashboard');
   const [courses, setCourses] = useState<CourseInfo[]>([]);
@@ -14,6 +16,7 @@ export default function App() {
   const [lastUpload, setLastUpload] = useState<UploadRecord | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const refresh = useCallback(async (preferredCourse?: string) => {
     try {
@@ -21,17 +24,14 @@ export default function App() {
       const [cs, ups] = await Promise.all([fetchCourses(), fetchUploads()]);
       setCourses(cs);
       setLastUpload(ups[0] ?? null);
-      setCourse((current) => {
-        const next =
-          preferredCourse && cs.some((c) => c.courseTitle === preferredCourse) ? preferredCourse
-          : cs.some((c) => c.courseTitle === current) ? current
-          : (cs[0]?.courseTitle ?? '');
-        if (next) fetchEnrollments(next).then(setRows).catch((e) => setLoadError(String(e)));
-        else setRows([]);
-        return next;
-      });
+      setCourse((current) =>
+        preferredCourse && cs.some((c) => c.courseTitle === preferredCourse) ? preferredCourse
+        : cs.some((c) => c.courseTitle === current) ? current
+        : (cs[0]?.courseTitle ?? ''),
+      );
+      setRefreshToken((t) => t + 1);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Failed to load data');
+      setLoadError(errMessage(e));
     }
   }, []);
 
@@ -39,14 +39,30 @@ export default function App() {
     void refresh();
   }, [refresh]);
 
-  const selectCourse = (title: string) => {
-    setCourse(title);
-    fetchEnrollments(title).then(setRows).catch((e) => setLoadError(String(e)));
-  };
+  // Owns the enrollment fetch. Keyed on `course` (switch courses) and
+  // `refreshToken` (bumped by refresh() so re-uploading the same course refetches).
+  // The cancellation flag drops stale responses when the key changes mid-flight.
+  useEffect(() => {
+    if (!course) {
+      setRows([]);
+      return;
+    }
+    let cancelled = false;
+    fetchEnrollments(course)
+      .then((data) => {
+        if (!cancelled) setRows(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setLoadError(errMessage(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [course, refreshToken]);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
-      <Sidebar page={page} onNavigate={setPage} courses={courses} course={course} onSelectCourse={selectCourse} />
+      <Sidebar page={page} onNavigate={setPage} courses={courses} course={course} onSelectCourse={setCourse} />
       <main className="flex-1">
         {loadError && <p className="m-6 rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
         {page === 'dashboard' ? (

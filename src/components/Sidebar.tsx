@@ -26,8 +26,9 @@ export default function Sidebar({ page, onNavigate, courses, course, onSelectCou
       {link('dashboard', 'Dashboard')}
       {link('people', 'People')}
       <div className="mt-auto border-t border-slate-700 pt-3">
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Course</label>
+        <label htmlFor="course-select" className="text-xs font-semibold uppercase tracking-wide text-slate-400">Course</label>
         <select
+          id="course-select"
           value={course}
           onChange={(e) => onSelectCourse(e.target.value)}
           className="mt-1 w-full rounded-md bg-slate-800 p-2 text-sm text-slate-100"
