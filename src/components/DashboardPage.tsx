@@ -1,4 +1,7 @@
 import type { Enrollment, UploadRecord } from '../../shared/types';
+import { computeStats, managerBreakdown, pendingCsv } from '../lib/stats';
+import HeroHeader from './HeroHeader';
+import ManagerChart from './ManagerChart';
 
 interface Props {
   course: string;
@@ -7,6 +10,39 @@ interface Props {
   onUploadClick: () => void;
 }
 
-export default function DashboardPage({ course }: Props) {
-  return <div className="p-6 text-slate-500">Dashboard for {course || '(no course)'} — built in Task 9</div>;
+export default function DashboardPage({ course, rows, lastUpload, onUploadClick }: Props) {
+  const stats = computeStats(rows);
+  const breakdown = managerBreakdown(rows);
+
+  const exportPending = () => {
+    const blob = new Blob([pendingCsv(rows)], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `pending-${course || 'course'}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <div>
+      <HeroHeader course={course} stats={stats} lastUpload={lastUpload} onUploadClick={onUploadClick} />
+      <div className="space-y-4 p-6">
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+            No data yet. Click <b>Upload Excel</b> to import your first export.
+          </div>
+        ) : (
+          <>
+            <ManagerChart breakdown={breakdown} />
+            <button
+              onClick={exportPending}
+              className="rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+            >
+              ⬇ Export pending list ({stats.pending})
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
