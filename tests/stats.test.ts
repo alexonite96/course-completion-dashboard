@@ -53,4 +53,28 @@ describe('pendingCsv', () => {
       'Bob,"Smith, Jr.",bob@example.com,Specialist,Maria Rivera,Safety 101,2026-06-01',
     );
   });
+
+  it('escapes embedded double-quotes by doubling them and wrapping', () => {
+    const rows = [row({ lastName: 'O"Brien', courseCompletionDate: null })];
+    expect(pendingCsv(rows)).toBe(
+      'First Name,Last Name,Business Email,Job Assignment,Manager,Course Title,Course Start Date\n' +
+      'Jane,"O""Brien",jane@example.com,Specialist,Maria Rivera,Safety 101,2026-06-01',
+    );
+  });
+
+  it('wraps fields containing an embedded newline in quotes', () => {
+    const rows = [row({ jobAssignment: 'Team\nLead', courseCompletionDate: null })];
+    expect(pendingCsv(rows)).toBe(
+      'First Name,Last Name,Business Email,Job Assignment,Manager,Course Title,Course Start Date\n' +
+      'Jane,Cooper,jane@example.com,"Team\nLead",Maria Rivera,Safety 101,2026-06-01',
+    );
+  });
+
+  it('renders null fields as empty cells, not the literal "null"', () => {
+    const rows = [row({ jobAssignment: null, manager: null, courseStartDate: null, courseCompletionDate: null })];
+    expect(pendingCsv(rows)).toBe(
+      'First Name,Last Name,Business Email,Job Assignment,Manager,Course Title,Course Start Date\n' +
+      'Jane,Cooper,jane@example.com,,,Safety 101,',
+    );
+  });
 });
