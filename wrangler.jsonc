@@ -11,7 +11,7 @@
     {
       "binding": "DB",
       "database_name": "course-completion-dashboard",
-      "database_id": "REPLACE-ON-DEPLOY",
+      "database_id": "75352b7d-3c9a-435e-a2e8-fb876e6431b9",
       "migrations_dir": "migrations"
     }
   ]
