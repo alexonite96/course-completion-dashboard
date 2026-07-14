@@ -19,6 +19,8 @@ const fullRow = (over: Partial<Record<number, unknown>> = {}): unknown[] => {
   return base.map((v, i) => (i in over ? over[i] : v));
 };
 
+// Dates carry no timezone: every toIsoDate path must be timezone-independent,
+// so these expectations must hold identically under any host TZ (e.g. TZ=America/Los_Angeles).
 describe('toIsoDate', () => {
   it('passes through empty as null without error', () => {
     expect(toIsoDate(null)).toEqual({ iso: null, ok: true });
@@ -28,8 +30,8 @@ describe('toIsoDate', () => {
   it('converts Excel serial numbers (days since 1899-12-30)', () => {
     expect(toIsoDate(45000)).toEqual({ iso: '2023-03-15', ok: true });
   });
-  it('converts JS Date objects', () => {
-    expect(toIsoDate(new Date(2026, 5, 20))).toEqual({ iso: '2026-06-20', ok: true });
+  it('converts JS Date objects (UTC-anchored, as SheetJS produces)', () => {
+    expect(toIsoDate(new Date(Date.UTC(2026, 5, 20)))).toEqual({ iso: '2026-06-20', ok: true });
   });
   it('converts common text dates', () => {
     expect(toIsoDate('06/20/2026')).toEqual({ iso: '2026-06-20', ok: true });
@@ -102,6 +104,13 @@ describe('parseWorkbook', () => {
     const result = parseWorkbook(workbook([fullRow({ 6: '' }), fullRow()]));
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].courseCompletionDate).toBe('2026-06-20');
+  });
+
+  it('keeps Excel row numbers accurate when a blank row precedes bad data', () => {
+    // Row 2 = valid, row 3 = fully blank (dropped by object mode), row 4 = invalid email.
+    const result = parseWorkbook(workbook([fullRow(), [], fullRow({ 2: '' })]));
+    expect(result.rows).toHaveLength(1);
+    expect(result.skipped).toEqual([{ row: 4, message: 'Missing or invalid Business Email' }]);
   });
 
   it('throws on a workbook with no data rows', () => {
