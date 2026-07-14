@@ -41,9 +41,17 @@ app.post('/api/uploads', async (c) => {
   if (!body || typeof body.filename !== 'string' || !Array.isArray(body.rows) || body.rows.length === 0) {
     return c.json({ error: 'Body must include filename and a non-empty rows array' }, 400);
   }
+  if (body.rows.length > 5000) {
+    return c.json({ error: 'Too many rows in one upload (max 5000)' }, 400);
+  }
   for (const r of body.rows) {
-    if (typeof r.email !== 'string' || !r.email.includes('@') || typeof r.courseTitle !== 'string' || !r.courseTitle) {
-      return c.json({ error: 'Every row needs a valid email and courseTitle' }, 400);
+    if (
+      typeof r.firstName !== 'string' || !r.firstName ||
+      typeof r.lastName !== 'string' || !r.lastName ||
+      typeof r.email !== 'string' || !r.email.includes('@') ||
+      typeof r.courseTitle !== 'string' || !r.courseTitle
+    ) {
+      return c.json({ error: 'Every row needs firstName, lastName, a valid email, and courseTitle' }, 400);
     }
   }
 
@@ -54,19 +62,30 @@ app.post('/api/uploads', async (c) => {
   const { inserted, updated } = countInsertsAndUpdates(existingKeys, body.rows);
 
   const now = new Date().toISOString();
-  const stmt = c.env.DB.prepare(UPSERT_SQL);
-  await c.env.DB.batch(body.rows.map((r) => stmt.bind(...upsertParams(r, now))));
-
+  const upsertStmt = c.env.DB.prepare(UPSERT_SQL);
   const skipped = typeof body.skippedCount === 'number' ? body.skippedCount : 0;
-  await c.env.DB.prepare(
+  const historyStmt = c.env.DB.prepare(
     `INSERT INTO uploads (filename, uploaded_at, rows_processed, rows_inserted, rows_updated, rows_skipped, uploaded_by)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     body.filename, now, body.rows.length, inserted, updated, skipped,
+    // NOTE: Cf-Access-Authenticated-User-Email is only trustworthy once Cloudflare Access
+    // fronts this Worker (Access overwrites any client-supplied value). Until SSO is enabled,
+    // treat uploaded_by as untrusted — a direct caller could set this header.
     c.req.header('Cf-Access-Authenticated-User-Email') ?? null,
-  ).run();
+  );
+
+  await c.env.DB.batch([
+    ...body.rows.map((r) => upsertStmt.bind(...upsertParams(r, now))),
+    historyStmt,
+  ]);
 
   return c.json({ processed: body.rows.length, inserted, updated, skipped });
+});
+
+app.onError((err, c) => {
+  console.error('API error:', err);
+  return c.json({ error: 'Internal server error' }, 500);
 });
 
 export default app;
