@@ -49,7 +49,11 @@ export default function UploadModal({ onClose, onUploaded }: Props) {
           type="file"
           accept=".xlsx"
           className="hidden"
-          onChange={(e) => void onFile(e.target.files?.[0])}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ''; // allow re-selecting the same file to fire change again
+            void onFile(file);
+          }}
         />
         <button
           onClick={() => fileRef.current?.click()}
