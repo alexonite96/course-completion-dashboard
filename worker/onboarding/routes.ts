@@ -5,12 +5,14 @@ import type {
   CompletionUploadResponse,
   MasterParseResult,
   MasterUploadResponse,
+  RolePlanMappingInput,
 } from '../../shared/onboarding-types';
 import {
   assembleHires,
   completionUpsertParams,
   hireUpsertParams,
   planDefParams,
+  rowToMappingRule,
   UPSERT_COMPLETION_SQL,
   UPSERT_HIRE_SQL,
   UPSERT_PLAN_DEF_SQL,
@@ -137,6 +139,40 @@ app.get('/api/onboarding/manager/:slug', async (c) => {
     .filter((r) => hireIds.has(r.new_hire_id as number));
   const hires = assembleHires(hireRows.results as Record<string, unknown>[], relevantCompletions);
   return c.json(hires);
+});
+
+app.get('/api/onboarding/mapping', async (c) => {
+  const { results } = await c.env.DB.prepare('SELECT * FROM role_plan_mapping ORDER BY priority DESC, id').all();
+  return c.json(results.map((r) => rowToMappingRule(r as Record<string, unknown>)));
+});
+
+app.post('/api/onboarding/mapping', async (c) => {
+  const body = await c.req.json<RolePlanMappingInput>().catch(() => null);
+  if (!body || typeof body.rolePattern !== 'string' || !body.rolePattern.trim() ||
+      typeof body.learningPlanTitle !== 'string' || !body.learningPlanTitle.trim()) {
+    return c.json({ error: 'rolePattern and learningPlanTitle are required' }, 400);
+  }
+  const result = await c.env.DB
+    .prepare(
+      `INSERT INTO role_plan_mapping (role_pattern, department_pattern, country_pattern, learning_plan_title, priority)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      body.rolePattern.trim(),
+      body.departmentPattern?.trim() || null,
+      body.countryPattern?.trim() || null,
+      body.learningPlanTitle.trim(),
+      body.priority ?? 0,
+    )
+    .run();
+  return c.json({ id: result.meta.last_row_id });
+});
+
+app.delete('/api/onboarding/mapping/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  if (!Number.isInteger(id)) return c.json({ error: 'Invalid id' }, 400);
+  await c.env.DB.prepare('DELETE FROM role_plan_mapping WHERE id = ?').bind(id).run();
+  return c.json({ ok: true });
 });
 
 app.onError((err, c) => {
