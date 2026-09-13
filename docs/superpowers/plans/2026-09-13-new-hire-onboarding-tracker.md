@@ -677,8 +677,8 @@ const STATUS_RANK: Record<PlanStatus, number> = {
   complete: 0,
   in_progress: 1,
   not_started: 2,
-  unmapped: 2,
-  overdue: 3,
+  unmapped: 3,
+  overdue: 4,
 };
 
 function overallFromPlans(week1: PlanStatus, week2: PlanStatus): OverallStatus {
