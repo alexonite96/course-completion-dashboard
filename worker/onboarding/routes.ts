@@ -11,6 +11,19 @@ app.post('/api/onboarding/uploads/master', async (c) => {
   if (!body || !Array.isArray(body.hires) || !Array.isArray(body.plans)) {
     return c.json({ error: 'Body must include hires[] and plans[] arrays' }, 400);
   }
+  if (body.hires.length + body.plans.length > 5000) {
+    return c.json({ error: 'Too many rows in one upload (max 5000 combined hires + plans)' }, 400);
+  }
+  for (const h of body.hires) {
+    if (typeof h.fullName !== 'string' || !h.fullName) {
+      return c.json({ error: 'Every hire needs a fullName' }, 400);
+    }
+  }
+  for (const p of body.plans) {
+    if (typeof p.title !== 'string' || !p.title) {
+      return c.json({ error: 'Every plan needs a title' }, 400);
+    }
+  }
 
   const now = new Date().toISOString();
   const hireStmt = c.env.DB.prepare(UPSERT_HIRE_SQL);
