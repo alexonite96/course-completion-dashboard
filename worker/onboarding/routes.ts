@@ -7,6 +7,7 @@ import type {
   MasterUploadResponse,
 } from '../../shared/onboarding-types';
 import {
+  assembleHires,
   completionUpsertParams,
   hireUpsertParams,
   planDefParams,
@@ -111,6 +112,31 @@ app.post('/api/onboarding/uploads/completion-report', async (c) => {
 
   const response: CompletionUploadResponse = { processed: body.rows.length, matchedExact, matchedToken, unmatched };
   return c.json(response);
+});
+
+app.get('/api/onboarding/hires', async (c) => {
+  const [hireRows, completionRows] = await Promise.all([
+    c.env.DB.prepare('SELECT * FROM new_hires ORDER BY js_date DESC, full_name').all(),
+    c.env.DB.prepare('SELECT * FROM plan_completions').all(),
+  ]);
+  const hires = assembleHires(
+    hireRows.results as Record<string, unknown>[],
+    completionRows.results as Record<string, unknown>[],
+  );
+  return c.json(hires);
+});
+
+app.get('/api/onboarding/manager/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const [hireRows, completionRows] = await Promise.all([
+    c.env.DB.prepare('SELECT * FROM new_hires WHERE manager_slug = ? ORDER BY js_date DESC, full_name').bind(slug).all(),
+    c.env.DB.prepare('SELECT * FROM plan_completions').all(),
+  ]);
+  const hireIds = new Set(hireRows.results.map((r) => r.id));
+  const relevantCompletions = (completionRows.results as Record<string, unknown>[])
+    .filter((r) => hireIds.has(r.new_hire_id as number));
+  const hires = assembleHires(hireRows.results as Record<string, unknown>[], relevantCompletions);
+  return c.json(hires);
 });
 
 app.onError((err, c) => {
