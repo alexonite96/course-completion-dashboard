@@ -2754,10 +2754,18 @@ export default function OnboardingPage() {
     onTrack: visible.filter((j) => j.overallStatus === 'on_track').length,
     behind: visible.filter((j) => j.overallStatus === 'behind').length,
     notStarted: visible.filter((j) => j.overallStatus === 'not_started').length,
+    needsAttention: visible.filter((j) => j.overallStatus === 'unmapped' || j.overallStatus === 'no_start_date').length,
   }), [visible]);
 
+  // Always covers every behind-schedule hire, regardless of the recency-window
+  // toggle above, since this list exists for operational follow-up.
+  const totalBehindCount = useMemo(
+    () => journeys.filter((j) => j.overallStatus === 'behind').length,
+    [journeys],
+  );
+
   const exportOverdue = () => {
-    const blob = new Blob(['﻿' + overdueCsv(visible)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['﻿' + overdueCsv(journeys)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -2791,7 +2799,7 @@ export default function OnboardingPage() {
 
       {loadError && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
 
-      <div className="mb-5 grid grid-cols-4 gap-4">
+      <div className="mb-5 grid grid-cols-5 gap-4">
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="text-2xl font-bold text-slate-800">{stats.total}</div>
           <div className="text-xs text-slate-400">Total New Hires</div>
@@ -2808,20 +2816,30 @@ export default function OnboardingPage() {
           <div className="text-2xl font-bold text-amber-600">{stats.notStarted}</div>
           <div className="text-xs text-slate-400">Not Started</div>
         </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="text-2xl font-bold text-purple-600">{stats.needsAttention}</div>
+          <div className="text-xs text-slate-400">Needs Attention</div>
+        </div>
       </div>
 
-      {visible.length === 0 ? (
+      {hires.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
           No data yet. Click <b>Upload files</b> to import the master file and completion report.
         </div>
-      ) : (
+      ) : visible.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          No hires match the last {DEFAULT_RECENT_WINDOW_DAYS} days. <button className="underline" onClick={() => setShowAll(true)}>Show all</button> to see full history.
+        </div>
+      ) : null}
+
+      {visible.length > 0 && (
         <>
           <button
             onClick={exportOverdue}
-            disabled={stats.behind === 0}
+            disabled={totalBehindCount === 0}
             className="mb-4 rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ⬇ Export behind-schedule list ({stats.behind})
+            ⬇ Export behind-schedule list ({totalBehindCount})
           </button>
           <HireTable journeys={visible} onSelect={setSelectedId} />
         </>
