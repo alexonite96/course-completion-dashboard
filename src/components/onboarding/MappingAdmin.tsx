@@ -13,6 +13,7 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
   const [departmentPattern, setDepartmentPattern] = useState('');
   const [countryPattern, setCountryPattern] = useState('');
   const [learningPlanTitle, setLearningPlanTitle] = useState('');
+  const [priority, setPriority] = useState('0');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -24,17 +25,19 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
     setBusy(true);
     setError('');
     try {
+      const parsedPriority = Number(priority);
       await addMappingRule({
         rolePattern,
         departmentPattern: departmentPattern || null,
         countryPattern: countryPattern || null,
         learningPlanTitle,
-        priority: 0,
+        priority: Number.isNaN(parsedPriority) ? 0 : parsedPriority,
       });
       setRolePattern('');
       setDepartmentPattern('');
       setCountryPattern('');
       setLearningPlanTitle('');
+      setPriority('0');
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add rule.');
@@ -68,6 +71,7 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
               <th className="py-1">Role pattern</th>
               <th className="py-1">Department</th>
               <th className="py-1">Country</th>
+              <th className="py-1">Priority</th>
               <th className="py-1">Learning Plan</th>
               <th className="py-1"></th>
             </tr>
@@ -78,6 +82,7 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
                 <td className="py-1">{r.rolePattern}</td>
                 <td className="py-1">{r.departmentPattern ?? '—'}</td>
                 <td className="py-1">{r.countryPattern ?? '—'}</td>
+                <td className="py-1">{r.priority}</td>
                 <td className="py-1">{r.learningPlanTitle}</td>
                 <td className="py-1 text-right">
                   <button onClick={() => void remove(r.id)} disabled={busy} className="text-xs text-red-600 hover:underline">Remove</button>
@@ -85,7 +90,7 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
               </tr>
             ))}
             {rules.length === 0 && (
-              <tr><td colSpan={5} className="py-4 text-center text-slate-400">No rules yet.</td></tr>
+              <tr><td colSpan={6} className="py-4 text-center text-slate-400">No rules yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -95,6 +100,7 @@ export default function MappingAdmin({ rules, onClose, onChanged }: Props) {
           <input value={learningPlanTitle} onChange={(e) => setLearningPlanTitle(e.target.value)} placeholder="Learning Plan title (required)" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
           <input value={departmentPattern} onChange={(e) => setDepartmentPattern(e.target.value)} placeholder="Department pattern (optional)" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
           <input value={countryPattern} onChange={(e) => setCountryPattern(e.target.value)} placeholder="Country pattern (optional)" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="Priority (higher wins ties, default 0)" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </div>
         {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
 
