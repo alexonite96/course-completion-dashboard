@@ -1,3 +1,4 @@
+// tests/onboarding/onboardingStatus.test.ts
 import { describe, expect, it } from 'vitest';
 import { WEEK1_PLAN_TITLE } from '../../shared/onboarding-constants';
 import type { HireRecord, RolePlanMappingRule } from '../../shared/onboarding-types';
