@@ -40,6 +40,29 @@ export interface MatchOutcome {
   confidence: MatchConfidence;
 }
 
+interface NormalizedCandidate {
+  normalized: string;
+  tokens: string[];
+  firstCanonical: string;
+}
+
+const normalizedCache = new WeakMap<MatchCandidate[], NormalizedCandidate[]>();
+
+/** Computes (and caches, keyed by the candidates array's identity) per-candidate normalized name data. */
+function getNormalizedCandidates(candidates: MatchCandidate[]): NormalizedCandidate[] {
+  const cached = normalizedCache.get(candidates);
+  if (cached) return cached;
+
+  const computed = candidates.map((c) => {
+    const normalized = normalizeName(c.fullName);
+    const tokens = normalized.split(' ').filter(Boolean);
+    const firstCanonical = canonicalFirstName(tokens[0] ?? '');
+    return { normalized, tokens, firstCanonical };
+  });
+  normalizedCache.set(candidates, computed);
+  return computed;
+}
+
 /**
  * Matches a (preferredName, lastName) pair from the completion report against
  * master-file hire candidates. Tier 1: exact normalized full-name match.
@@ -52,10 +75,12 @@ export function matchPerson(
   lastName: string,
   candidates: MatchCandidate[],
 ): MatchOutcome | null {
+  const normalizedCandidates = getNormalizedCandidates(candidates);
+
   const fullNormalized = normalizeName(`${preferredName} ${lastName}`);
-  for (const c of candidates) {
-    if (normalizeName(c.fullName) === fullNormalized) {
-      return { index: c.index, confidence: 'exact' };
+  for (let i = 0; i < candidates.length; i++) {
+    if (normalizedCandidates[i].normalized === fullNormalized) {
+      return { index: candidates[i].index, confidence: 'exact' };
     }
   }
 
@@ -63,13 +88,13 @@ export function matchPerson(
   const firstCanonical = canonicalFirstName(normalizeName(preferredName));
   if (lastTokens.length === 0) return null;
 
-  for (const c of candidates) {
-    const candTokens = normalizeName(c.fullName).split(' ').filter(Boolean);
+  for (let i = 0; i < candidates.length; i++) {
+    const candTokens = normalizedCandidates[i].tokens;
     if (candTokens.length === 0) continue;
-    const candFirstCanonical = canonicalFirstName(candTokens[0]);
+    const candFirstCanonical = normalizedCandidates[i].firstCanonical;
     const hasAllLastTokens = lastTokens.every((t) => candTokens.includes(t));
     if (hasAllLastTokens && candFirstCanonical === firstCanonical) {
-      return { index: c.index, confidence: 'token' };
+      return { index: candidates[i].index, confidence: 'token' };
     }
   }
 
