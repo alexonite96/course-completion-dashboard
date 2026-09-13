@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { parseCompletionReport } from '../../src/excel/parseCompletionReport';
+import { MissingColumnsError, parseCompletionReport } from '../../src/excel/parseCompletionReport';
 
 const METADATA_ROW = ['MyDayforce | Learning Plan Completion Report | Dayforce filters...'];
 const HEADERS = [
@@ -76,5 +76,14 @@ describe('parseCompletionReport', () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['no headers here'], ['still nothing']]), 'Sheet1');
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
     expect(() => parseCompletionReport(buf)).toThrowError('Could not find the header row');
+  });
+
+  it('throws MissingColumnsError when the header row is present but missing a required column', () => {
+    const headers = HEADERS.filter((h) => h !== 'Learning Plan Completion Date');
+    const row = courseRow().filter((_, i) => i !== 16);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([METADATA_ROW, headers, row]), 'Sheet1');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+    expect(() => parseCompletionReport(buf)).toThrowError(MissingColumnsError);
   });
 });

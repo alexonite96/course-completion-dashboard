@@ -82,7 +82,7 @@ export function parseCompletionReport(data: ArrayBuffer | Uint8Array): Completio
       return;
     }
 
-    const key = `${normalize(preferredName)}||${normalize(lastName)}||${learningPlanTitle}`;
+    const key = `${normalize(preferredName)}||${normalize(lastName)}||${normalize(learningPlanTitle)}`;
     const enroll = toIsoDate(get(row, 'enrollmentDate'));
     const g = groups.get(key) ?? {
       preferredName, lastName, learningPlanTitle,
