@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CourseInfo, Enrollment, UploadRecord } from '../shared/types';
 import { fetchCourses, fetchEnrollments, fetchUploads } from './api';
 import DashboardPage from './components/DashboardPage';
+import OnboardingPage from './components/onboarding/OnboardingPage';
 import PeoplePage from './components/PeoplePage';
 import Sidebar from './components/Sidebar';
 import UploadModal from './components/UploadModal';
@@ -9,7 +10,7 @@ import UploadModal from './components/UploadModal';
 const errMessage = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong');
 
 export default function App() {
-  const [page, setPage] = useState<'dashboard' | 'people'>('dashboard');
+  const [page, setPage] = useState<'dashboard' | 'people' | 'onboarding'>('dashboard');
   const [courses, setCourses] = useState<CourseInfo[]>([]);
   const [course, setCourse] = useState('');
   const [rows, setRows] = useState<Enrollment[]>([]);
@@ -67,8 +68,10 @@ export default function App() {
         {loadError && <p className="m-6 rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
         {page === 'dashboard' ? (
           <DashboardPage course={course} rows={rows} lastUpload={lastUpload} onUploadClick={() => setUploadOpen(true)} />
-        ) : (
+        ) : page === 'people' ? (
           <PeoplePage rows={rows} />
+        ) : (
+          <OnboardingPage />
         )}
       </main>
       {uploadOpen && (
