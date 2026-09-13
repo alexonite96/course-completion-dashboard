@@ -23,6 +23,8 @@ export default function OnboardingUploadModal({ onClose, onUploaded }: Props) {
 
   const onFile = async (file: File | undefined) => {
     setError('');
+    if (step === 'master') setMasterResult(null);
+    else setCompletionResult(null);
     if (!file) return;
     setFilename(file.name);
     try {
