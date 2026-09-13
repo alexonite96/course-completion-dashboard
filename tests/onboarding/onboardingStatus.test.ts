@@ -60,6 +60,14 @@ describe('buildHireJourney', () => {
     expect(j.week1.status).toBe('overdue');
   });
 
+  it('matches the Week 1 plan title case-insensitively so real completions are not reported as behind', () => {
+    const completions = [
+      { learningPlanTitle: 'JUMP START - WEEK 1', enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },
+    ];
+    const j = buildHireJourney(hire({ completions }), rules, '2026-09-09');
+    expect(j.week1.status).toBe('complete');
+  });
+
   it('is behind when Week 1 is complete but Week 2 is enrolled and overdue', () => {
     const completions = [
       { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },

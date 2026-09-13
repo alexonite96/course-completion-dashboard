@@ -9,6 +9,8 @@ function addDaysIso(iso: string, days: number): string {
   return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
 }
 
+const normalizeTitle = (s: string) => s.trim().toLowerCase();
+
 function buildJourney(
   planTitle: string | null,
   jsDate: string | null,
@@ -19,7 +21,7 @@ function buildJourney(
   if (planTitle === null) {
     return { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0 };
   }
-  const record = completions.find((c) => c.learningPlanTitle === planTitle) ?? null;
+  const record = completions.find((c) => normalizeTitle(c.learningPlanTitle) === normalizeTitle(planTitle)) ?? null;
   const deadline = jsDate ? addDaysIso(jsDate, deadlineDays) : null;
 
   let status: PlanStatus;
