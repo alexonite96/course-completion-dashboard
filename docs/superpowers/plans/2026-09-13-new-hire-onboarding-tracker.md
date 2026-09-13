@@ -410,7 +410,7 @@ const normalizedCache = new WeakMap<MatchCandidate[], NormalizedCandidate[]>();
 /** Computes (and caches, keyed by the candidates array's identity) per-candidate normalized name data. */
 function getNormalizedCandidates(candidates: MatchCandidate[]): NormalizedCandidate[] {
   const cached = normalizedCache.get(candidates);
-  if (cached) return cached;
+  if (cached && cached.length === candidates.length) return cached;
 
   const computed = candidates.map((c) => {
     const normalized = normalizeName(c.fullName);
