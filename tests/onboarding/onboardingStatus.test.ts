@@ -51,4 +51,23 @@ describe('buildHireJourney', () => {
     const j = buildHireJourney(hire({ jsDate: null }), rules, '2026-09-03');
     expect(j.overallStatus).toBe('no_start_date');
   });
+
+  it('marks Week 1 overdue when enrolled but not completed once the deadline passes', () => {
+    const completions = [
+      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 5, coursesCompleted: 2 },
+    ];
+    const j = buildHireJourney(hire({ completions }), rules, '2026-09-09');
+    expect(j.week1.status).toBe('overdue');
+  });
+
+  it('is behind when Week 1 is complete but Week 2 is enrolled and overdue', () => {
+    const completions = [
+      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },
+      { learningPlanTitle: 'Jump Start - Services Consultants Core & GL', enrollmentDate: '2026-09-05', completionDate: null, coursesTotal: 10, coursesCompleted: 3 },
+    ];
+    const j = buildHireJourney(hire({ completions }), rules, '2026-09-16');
+    expect(j.week1.status).toBe('complete');
+    expect(j.week2.status).toBe('overdue');
+    expect(j.overallStatus).toBe('behind');
+  });
 });
