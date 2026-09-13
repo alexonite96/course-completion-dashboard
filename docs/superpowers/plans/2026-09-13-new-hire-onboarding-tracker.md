@@ -399,22 +399,51 @@ export interface MatchOutcome {
   confidence: MatchConfidence;
 }
 
+interface NormalizedCandidate {
+  normalized: string;
+  tokens: string[];
+  firstCanonical: string;
+}
+
+const normalizedCache = new WeakMap<MatchCandidate[], NormalizedCandidate[]>();
+
+/** Computes (and caches, keyed by the candidates array's identity) per-candidate normalized name data. */
+function getNormalizedCandidates(candidates: MatchCandidate[]): NormalizedCandidate[] {
+  const cached = normalizedCache.get(candidates);
+  if (cached) return cached;
+
+  const computed = candidates.map((c) => {
+    const normalized = normalizeName(c.fullName);
+    const tokens = normalized.split(' ').filter(Boolean);
+    const firstCanonical = canonicalFirstName(tokens[0] ?? '');
+    return { normalized, tokens, firstCanonical };
+  });
+  normalizedCache.set(candidates, computed);
+  return computed;
+}
+
 /**
  * Matches a (preferredName, lastName) pair from the completion report against
  * master-file hire candidates. Tier 1: exact normalized full-name match.
  * Tier 2: all normalized last-name tokens appear in the candidate's name, and
  * the first-name tokens match exactly or via the nickname table. First match
  * wins in each tier — good enough for this proof-of-concept phase.
+ *
+ * Candidate-side normalization is cached by array identity (`routes.ts` calls
+ * this once per upload row against the same candidates array), since a fresh
+ * `normalizeName` per candidate per row is O(rows × hires).
  */
 export function matchPerson(
   preferredName: string,
   lastName: string,
   candidates: MatchCandidate[],
 ): MatchOutcome | null {
+  const normalizedCandidates = getNormalizedCandidates(candidates);
+
   const fullNormalized = normalizeName(`${preferredName} ${lastName}`);
-  for (const c of candidates) {
-    if (normalizeName(c.fullName) === fullNormalized) {
-      return { index: c.index, confidence: 'exact' };
+  for (let i = 0; i < candidates.length; i++) {
+    if (normalizedCandidates[i].normalized === fullNormalized) {
+      return { index: candidates[i].index, confidence: 'exact' };
     }
   }
 
@@ -422,13 +451,13 @@ export function matchPerson(
   const firstCanonical = canonicalFirstName(normalizeName(preferredName));
   if (lastTokens.length === 0) return null;
 
-  for (const c of candidates) {
-    const candTokens = normalizeName(c.fullName).split(' ').filter(Boolean);
+  for (let i = 0; i < candidates.length; i++) {
+    const candTokens = normalizedCandidates[i].tokens;
     if (candTokens.length === 0) continue;
-    const candFirstCanonical = canonicalFirstName(candTokens[0]);
+    const candFirstCanonical = normalizedCandidates[i].firstCanonical;
     const hasAllLastTokens = lastTokens.every((t) => candTokens.includes(t));
     if (hasAllLastTokens && candFirstCanonical === firstCanonical) {
-      return { index: c.index, confidence: 'token' };
+      return { index: candidates[i].index, confidence: 'token' };
     }
   }
 
@@ -640,6 +669,8 @@ function addDaysIso(iso: string, days: number): string {
   return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
 }
 
+const normalizeTitle = (s: string) => s.trim().toLowerCase();
+
 function buildJourney(
   planTitle: string | null,
   jsDate: string | null,
@@ -650,7 +681,9 @@ function buildJourney(
   if (planTitle === null) {
     return { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0 };
   }
-  const record = completions.find((c) => c.learningPlanTitle === planTitle) ?? null;
+  // Case/whitespace-insensitive: WEEK1_PLAN_TITLE and admin-entered mapping
+  // titles must match whatever casing the completion report happens to use.
+  const record = completions.find((c) => normalizeTitle(c.learningPlanTitle) === normalizeTitle(planTitle)) ?? null;
   const deadline = jsDate ? addDaysIso(jsDate, deadlineDays) : null;
 
   let status: PlanStatus;
@@ -2171,6 +2204,8 @@ export default function OnboardingUploadModal({ onClose, onUploaded }: Props) {
 
   const onFile = async (file: File | undefined) => {
     setError('');
+    if (step === 'master') setMasterResult(null);
+    else setCompletionResult(null);
     if (!file) return;
     setFilename(file.name);
     try {
