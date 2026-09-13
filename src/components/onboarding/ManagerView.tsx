@@ -15,6 +15,7 @@ export default function ManagerView({ slug }: { slug: string }) {
 
   const refresh = useCallback(async () => {
     try {
+      setError('');
       const [h, r] = await Promise.all([fetchManagerHires(slug), fetchMappingRules()]);
       setHires(h);
       setRules(r);
