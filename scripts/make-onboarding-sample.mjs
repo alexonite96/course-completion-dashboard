@@ -13,7 +13,7 @@ const daysAgo = (n) => {
 
 const hires = [
   [daysAgo(20), daysAgo(20), 'Jane Cooper', 'Services', '900001', 'Services Consultant', 'Maria Rivera', 'Mexico', 'MEX', 'Paul Thompson'],
-  [daysAgo(10), daysAgo(10), 'Kevin Adebayo', 'Support', '900002', 'Payroll Specialist III', 'Kevin Tan', 'India', 'IST', 'Ed Ciszewski'],
+  [daysAgo(20), daysAgo(20), 'Kevin Adebayo', 'Support', '900002', 'Payroll Specialist III', 'Kevin Tan', 'India', 'IST', 'Ed Ciszewski'],
   [daysAgo(3), daysAgo(3), 'Sofia Marin', 'Services', '900003', 'Services Consultant Sr', 'Maria Rivera', 'Mexico', 'MEX', 'Paul Thompson'],
   [daysAgo(45), daysAgo(45), 'Old Hire Example', 'Support', '900004', 'Application Developer', 'Kevin Tan', 'USA', 'EST', 'Ed Ciszewski'],
 ];
@@ -40,9 +40,9 @@ const reportRows = [
   // Jane Cooper: Week 1 complete, Week 2 complete -> On Track
   ['Jane', 'Cooper', 'jane.cooper@dayforce.com', 'Services Consultant', 'Jump Start - Week 1', daysAgo(20), 'Intro', daysAgo(20), daysAgo(18), '', 'Maria Rivera', '', 'Mexico', 'Implementation', 'Loc', 900, daysAgo(18)],
   ['Jane', 'Cooper', 'jane.cooper@dayforce.com', 'Services Consultant', 'Jump Start - Services Consultants Core & GL', daysAgo(18), 'Core Skills', daysAgo(18), daysAgo(12), '', 'Maria Rivera', '', 'Mexico', 'Implementation', 'Loc', 900, daysAgo(12)],
-  // Kevin Adebayo: Week 1 complete, Week 2 in progress but overdue (JS date 10 days ago, deadline day 14)
-  ['Kevin', 'Adebayo', 'kevin.adebayo@dayforce.com', 'Payroll Specialist III', 'Jump Start - Week 1', daysAgo(10), 'Intro', daysAgo(10), daysAgo(8), '', 'Kevin Tan', '', 'India', 'Support', 'Loc', 900, daysAgo(8)],
-  ['Kevin', 'Adebayo', 'kevin.adebayo@dayforce.com', 'Payroll Specialist III', 'Jump Start - Managed Payroll Specialist', daysAgo(8), 'Payroll Basics', daysAgo(8), '', '', 'Kevin Tan', '', 'India', 'Support', 'Loc', 900, ''],
+  // Kevin Adebayo: Week 1 complete, Week 2 overdue (JS date 20 days ago, Week 2 deadline was 6 days ago)
+  ['Kevin', 'Adebayo', 'kevin.adebayo@dayforce.com', 'Payroll Specialist III', 'Jump Start - Week 1', daysAgo(20), 'Intro', daysAgo(20), daysAgo(18), '', 'Kevin Tan', '', 'India', 'Support', 'Loc', 900, daysAgo(18)],
+  ['Kevin', 'Adebayo', 'kevin.adebayo@dayforce.com', 'Payroll Specialist III', 'Jump Start - Managed Payroll Specialist', daysAgo(18), 'Payroll Basics', daysAgo(18), '', '', 'Kevin Tan', '', 'India', 'Support', 'Loc', 900, ''],
   // Sofia Marin: nothing started yet (JS date 3 days ago, within deadline)
   // Old Hire Example: intentionally absent from the report (unmatched, "No training data found")
 ];
