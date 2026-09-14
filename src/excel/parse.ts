@@ -1,5 +1,8 @@
 import * as XLSX from 'xlsx';
 import type { EnrollmentInput, ParseResult, ParseWarning } from '../../shared/types';
+import { isBlankRow, MissingColumnsError, normalize, str, toIsoDate } from './shared';
+
+export { MissingColumnsError, toIsoDate };
 
 /** Spreadsheet header (normalized) → EnrollmentInput field. */
 const HEADER_MAP = {
@@ -26,64 +29,6 @@ const DISPLAY_NAMES: Record<string, string> = {
   'course completion date': 'Course Completion Date',
   'manager': 'Manager',
 };
-
-export class MissingColumnsError extends Error {
-  constructor(public missing: string[]) {
-    super(`Missing required columns: ${missing.join(', ')}`);
-    this.name = 'MissingColumnsError';
-  }
-}
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const fmtUtc = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-
-/** Build an ISO date from calendar parts, validating it is a real date. */
-function fromParts(y: number, m: number, d: number): { iso: string | null; ok: boolean } {
-  // Reconstruct via UTC and compare to catch impossible dates (e.g. month 13, day 45).
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
-    return { iso: null, ok: false };
-  }
-  return { iso: `${String(y).padStart(4, '0')}-${pad(m)}-${pad(d)}`, ok: true };
-}
-
-/**
- * Convert a cell value to an ISO date string.
- * ok:false means the cell had content we could not read as a date.
- *
- * Date-only values carry no timezone, so this must be timezone-independent:
- * every path resolves to fixed calendar components, never local-time getters.
- */
-export function toIsoDate(value: unknown): { iso: string | null; ok: boolean } {
-  if (value === null || value === undefined) return { iso: null, ok: true };
-  if (value instanceof Date) {
-    // SheetJS (cellDates:true) anchors date cells to UTC midnight, so read UTC parts.
-    return isNaN(value.getTime()) ? { iso: null, ok: false } : { iso: fmtUtc(value), ok: true };
-  }
-  if (typeof value === 'number' && isFinite(value)) {
-    // Excel serial date: days since 1899-12-30 (25569 = 1970-01-01)
-    const d = new Date(Math.round((value - 25569) * 86400000));
-    return isNaN(d.getTime()) ? { iso: null, ok: false } : { iso: fmtUtc(d), ok: true };
-  }
-  if (typeof value === 'string') {
-    const t = value.trim();
-    if (!t) return { iso: null, ok: true };
-    // Parse calendar components directly — do not rely on new Date()'s timezone rules.
-    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
-    if (iso) return fromParts(Number(iso[1]), Number(iso[2]), Number(iso[3]));
-    const mdy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
-    if (mdy) return fromParts(Number(mdy[3]), Number(mdy[1]), Number(mdy[2]));
-    // Fallback: let Date try, then read UTC parts for a stable result.
-    const d = new Date(t);
-    return isNaN(d.getTime()) ? { iso: null, ok: false } : { iso: fmtUtc(d), ok: true };
-  }
-  return { iso: null, ok: false };
-}
-
-const normalize = (s: string) => s.trim().toLowerCase();
-const str = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
-const isBlankRow = (row: unknown[] | undefined) =>
-  !row || row.every((c) => c === null || c === undefined || String(c).trim() === '');
 
 export function parseWorkbook(data: ArrayBuffer | Uint8Array): ParseResult {
   const wb = XLSX.read(data, { type: 'array', cellDates: true });

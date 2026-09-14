@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { EnrollmentInput } from '../shared/types';
 import { countInsertsAndUpdates, keyOf, rowToEnrollment, UPSERT_SQL, upsertParams } from './db';
+import onboardingApp from './onboarding/routes';
 
 type Bindings = { DB: D1Database };
 
@@ -82,6 +83,8 @@ app.post('/api/uploads', async (c) => {
 
   return c.json({ processed: body.rows.length, inserted, updated, skipped });
 });
+
+app.route('/', onboardingApp);
 
 app.onError((err, c) => {
   console.error('API error:', err);
