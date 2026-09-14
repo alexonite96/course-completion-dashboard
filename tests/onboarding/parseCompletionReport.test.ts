@@ -35,7 +35,32 @@ describe('parseCompletionReport', () => {
     expect(result.rows[0]).toEqual({
       preferredName: 'Abbey', lastName: 'Litschke', learningPlanTitle: 'Jump Start - Week 1',
       enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 2, coursesCompleted: 1,
+      courses: [
+        { name: 'Course A', completionDate: '2026-09-02' },
+        { name: 'Course B', completionDate: null },
+      ],
     });
+  });
+
+  it('captures each course name and its own completion date', () => {
+    const result = parseCompletionReport(workbook([
+      courseRow({ 6: 'Intro', 8: '2026-09-02' }),
+      courseRow({ 6: 'Advanced', 8: '' }),
+    ]));
+    expect(result.rows[0].courses).toEqual([
+      { name: 'Intro', completionDate: '2026-09-02' },
+      { name: 'Advanced', completionDate: null },
+    ]);
+  });
+
+  it('dedupes a repeated course row (e.g. re-enrollment), keeping the completed version', () => {
+    const result = parseCompletionReport(workbook([
+      courseRow({ 6: 'Intro', 8: '' }),
+      courseRow({ 6: 'Intro', 8: '2026-09-02' }),
+    ]));
+    expect(result.rows[0].coursesTotal).toBe(1);
+    expect(result.rows[0].coursesCompleted).toBe(1);
+    expect(result.rows[0].courses).toEqual([{ name: 'Intro', completionDate: '2026-09-02' }]);
   });
 
   it('treats the same person enrolled in two plans as two separate rows', () => {

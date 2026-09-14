@@ -1,15 +1,16 @@
 import * as XLSX from 'xlsx';
-import type { CompletionReportParseResult, CompletionRowInput, ParseWarning } from '../../shared/onboarding-types';
+import type { CompletionReportParseResult, CompletionRowInput, CourseCompletionRecord, ParseWarning } from '../../shared/onboarding-types';
 import { isBlankRow, MissingColumnsError, normalize, str, toIsoDate } from './shared';
 
 export { MissingColumnsError };
 
-type Field = 'preferredName' | 'lastName' | 'learningPlanTitle' | 'enrollmentDate' | 'courseCompletionDate' | 'planCompletionDate';
+type Field = 'preferredName' | 'lastName' | 'learningPlanTitle' | 'courseName' | 'enrollmentDate' | 'courseCompletionDate' | 'planCompletionDate';
 
 const HEADER_MAP: Record<string, Field> = {
   'preferred name': 'preferredName',
   'employee last name': 'lastName',
   'learning plan': 'learningPlanTitle',
+  'course': 'courseName',
   'learning plan enrollment date': 'enrollmentDate',
   'course enrolment completion': 'courseCompletionDate',
   'learning plan completion date': 'planCompletionDate',
@@ -19,6 +20,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   'preferred name': 'Preferred Name',
   'employee last name': 'Employee Last Name',
   'learning plan': 'Learning Plan',
+  'course': 'Course',
   'learning plan enrollment date': 'Learning Plan Enrollment Date',
   'course enrolment completion': 'Course Enrolment Completion',
   'learning plan completion date': 'Learning Plan Completion Date',
@@ -39,8 +41,7 @@ interface Group {
   learningPlanTitle: string;
   enrollmentDate: string | null;
   completionDate: string | null;
-  coursesTotal: number;
-  coursesCompleted: number;
+  courses: Map<string, CourseCompletionRecord>; // keyed by normalized course name, to dedupe repeated rows
 }
 
 export function parseCompletionReport(data: ArrayBuffer | Uint8Array): CompletionReportParseResult {
@@ -86,15 +87,40 @@ export function parseCompletionReport(data: ArrayBuffer | Uint8Array): Completio
     const enroll = toIsoDate(get(row, 'enrollmentDate'));
     const g = groups.get(key) ?? {
       preferredName, lastName, learningPlanTitle,
-      enrollmentDate: enroll.iso, completionDate: null, coursesTotal: 0, coursesCompleted: 0,
+      enrollmentDate: enroll.iso, completionDate: null,
+      courses: new Map<string, CourseCompletionRecord>(),
     };
-    g.coursesTotal += 1;
-    if (toIsoDate(get(row, 'courseCompletionDate')).iso) g.coursesCompleted += 1;
+
+    const courseName = str(get(row, 'courseName'));
+    const courseDone = toIsoDate(get(row, 'courseCompletionDate'));
+    if (courseName) {
+      const courseKey = normalize(courseName);
+      const existing = g.courses.get(courseKey);
+      // A course row can repeat (e.g. re-enrollment); keep the completed version if either is completed.
+      if (!existing || (!existing.completionDate && courseDone.iso)) {
+        g.courses.set(courseKey, { name: courseName, completionDate: courseDone.iso });
+      }
+    }
+
     const planDone = toIsoDate(get(row, 'planCompletionDate'));
     if (planDone.iso && !g.completionDate) g.completionDate = planDone.iso;
     groups.set(key, g);
   });
 
-  const rows: CompletionRowInput[] = [...groups.values()];
+  // coursesTotal/coursesCompleted are derived from the deduped course list, not
+  // raw row counts, so a repeated (re-enrollment) row doesn't inflate the total.
+  const rows: CompletionRowInput[] = [...groups.values()].map((g) => {
+    const courses = [...g.courses.values()];
+    return {
+      preferredName: g.preferredName,
+      lastName: g.lastName,
+      learningPlanTitle: g.learningPlanTitle,
+      enrollmentDate: g.enrollmentDate,
+      completionDate: g.completionDate,
+      coursesTotal: courses.length,
+      coursesCompleted: courses.filter((c) => c.completionDate).length,
+      courses,
+    };
+  });
   return { rows, skipped };
 }

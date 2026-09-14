@@ -13,8 +13,10 @@ import {
   UPSERT_HIRE_SQL,
   UPSERT_PLAN_DEF_SQL,
 } from '../../worker/onboarding/db';
+import type { CourseCompletionRecord } from '../../shared/onboarding-types';
 
-const migration = readFileSync('migrations/0002_onboarding.sql', 'utf8');
+const migration = readFileSync('migrations/0002_onboarding.sql', 'utf8')
+  + readFileSync('migrations/0003_plan_completion_courses.sql', 'utf8');
 
 const hire = (over: Partial<NewHireInput> = {}): NewHireInput => ({
   eeNumber: '100', fullName: 'Jane Cooper', department: 'Services', role: 'Services Consultant',
@@ -83,7 +85,7 @@ describe('plan_completions upsert', () => {
   });
 
   it('inserts and then updates a completion record for the same (hire, plan)', () => {
-    const row = { learningPlanTitle: 'Jump Start - Week 1', enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 5, coursesCompleted: 2 };
+    const row = { learningPlanTitle: 'Jump Start - Week 1', enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 5, coursesCompleted: 2, courses: [] as CourseCompletionRecord[] };
     db.prepare(UPSERT_COMPLETION_SQL).run(...(completionUpsertParams(hireId, row, 'exact', '2026-09-13T00:00:00Z') as never[]));
     db.prepare(UPSERT_COMPLETION_SQL).run(
       ...(completionUpsertParams(hireId, { ...row, completionDate: '2026-09-06', coursesCompleted: 5 }, 'exact', '2026-09-14T00:00:00Z') as never[]),
@@ -92,6 +94,23 @@ describe('plan_completions upsert', () => {
     expect(stored).toHaveLength(1);
     expect(stored[0].completion_date).toBe('2026-09-06');
     expect(stored[0].courses_completed).toBe(5);
+  });
+
+  it('round-trips the per-course list as JSON through upsert and assembleHires', () => {
+    const courses: CourseCompletionRecord[] = [
+      { name: 'Intro', completionDate: '2026-09-02' },
+      { name: 'Advanced', completionDate: null },
+    ];
+    const row = { learningPlanTitle: 'Jump Start - Week 1', enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 2, coursesCompleted: 1, courses };
+    db.prepare(UPSERT_COMPLETION_SQL).run(...(completionUpsertParams(hireId, row, 'exact', '2026-09-13T00:00:00Z') as never[]));
+
+    const storedRaw = db.prepare('SELECT courses FROM plan_completions').get() as { courses: string };
+    expect(JSON.parse(storedRaw.courses)).toEqual(courses);
+
+    const hireRows = db.prepare('SELECT * FROM new_hires').all() as Record<string, unknown>[];
+    const completionRows = db.prepare('SELECT * FROM plan_completions').all() as Record<string, unknown>[];
+    const hires = assembleHires(hireRows, completionRows);
+    expect(hires.find((h) => h.id === hireId)?.completions[0].courses).toEqual(courses);
   });
 });
 

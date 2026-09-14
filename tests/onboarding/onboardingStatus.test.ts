@@ -31,8 +31,8 @@ describe('buildHireJourney', () => {
 
   it('is on track when Week 1 is complete and Week 2 is still in progress before its deadline', () => {
     const completions = [
-      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },
-      { learningPlanTitle: 'Jump Start - Services Consultants Core & GL', enrollmentDate: '2026-09-05', completionDate: null, coursesTotal: 10, coursesCompleted: 3 },
+      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5, courses: [] },
+      { learningPlanTitle: 'Jump Start - Services Consultants Core & GL', enrollmentDate: '2026-09-05', completionDate: null, coursesTotal: 10, coursesCompleted: 3, courses: [] },
     ];
     const j = buildHireJourney(hire({ completions }), rules, '2026-09-08');
     expect(j.week1.status).toBe('complete');
@@ -54,7 +54,7 @@ describe('buildHireJourney', () => {
 
   it('marks Week 1 overdue when enrolled but not completed once the deadline passes', () => {
     const completions = [
-      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 5, coursesCompleted: 2 },
+      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: null, coursesTotal: 5, coursesCompleted: 2, courses: [] },
     ];
     const j = buildHireJourney(hire({ completions }), rules, '2026-09-09');
     expect(j.week1.status).toBe('overdue');
@@ -62,16 +62,32 @@ describe('buildHireJourney', () => {
 
   it('matches the Week 1 plan title case-insensitively so real completions are not reported as behind', () => {
     const completions = [
-      { learningPlanTitle: 'JUMP START - WEEK 1', enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },
+      { learningPlanTitle: 'JUMP START - WEEK 1', enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5, courses: [] },
     ];
     const j = buildHireJourney(hire({ completions }), rules, '2026-09-09');
     expect(j.week1.status).toBe('complete');
   });
 
+  it('passes the per-course list through to the plan journey', () => {
+    const completions = [
+      {
+        learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: null,
+        coursesTotal: 2, coursesCompleted: 1,
+        courses: [{ name: 'Intro', completionDate: '2026-09-02' }, { name: 'Advanced', completionDate: null }],
+      },
+    ];
+    const j = buildHireJourney(hire({ completions }), rules, '2026-09-03');
+    expect(j.week1.courses).toEqual([
+      { name: 'Intro', completionDate: '2026-09-02' },
+      { name: 'Advanced', completionDate: null },
+    ]);
+    expect(j.week2.courses).toEqual([]);
+  });
+
   it('is behind when Week 1 is complete but Week 2 is enrolled and overdue', () => {
     const completions = [
-      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5 },
-      { learningPlanTitle: 'Jump Start - Services Consultants Core & GL', enrollmentDate: '2026-09-05', completionDate: null, coursesTotal: 10, coursesCompleted: 3 },
+      { learningPlanTitle: WEEK1_PLAN_TITLE, enrollmentDate: '2026-09-01', completionDate: '2026-09-05', coursesTotal: 5, coursesCompleted: 5, courses: [] },
+      { learningPlanTitle: 'Jump Start - Services Consultants Core & GL', enrollmentDate: '2026-09-05', completionDate: null, coursesTotal: 10, coursesCompleted: 3, courses: [] },
     ];
     const j = buildHireJourney(hire({ completions }), rules, '2026-09-16');
     expect(j.week1.status).toBe('complete');

@@ -1,4 +1,4 @@
-import type { HireRecord, LearningPlanDefInput, NewHireInput, PlanCompletionRecord, RolePlanMappingRule } from '../../shared/onboarding-types';
+import type { CourseCompletionRecord, HireRecord, LearningPlanDefInput, NewHireInput, PlanCompletionRecord, RolePlanMappingRule } from '../../shared/onboarding-types';
 import { stripDiacritics } from './nameMatch';
 
 export function slugify(name: string): string {
@@ -58,20 +58,28 @@ export function planDefParams(p: LearningPlanDefInput): (string | null)[] {
 
 export const UPSERT_COMPLETION_SQL = `
 INSERT INTO plan_completions
-  (new_hire_id, learning_plan_title, enrollment_date, completion_date, courses_total, courses_completed, match_confidence, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (new_hire_id, learning_plan_title, enrollment_date, completion_date, courses_total, courses_completed, courses, match_confidence, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (new_hire_id, learning_plan_title) DO UPDATE SET
   enrollment_date = excluded.enrollment_date,
   completion_date = excluded.completion_date,
   courses_total = excluded.courses_total,
   courses_completed = excluded.courses_completed,
+  courses = excluded.courses,
   match_confidence = excluded.match_confidence,
   updated_at = excluded.updated_at
 `;
 
 export function completionUpsertParams(
   newHireId: number,
-  row: { learningPlanTitle: string; enrollmentDate: string | null; completionDate: string | null; coursesTotal: number; coursesCompleted: number },
+  row: {
+    learningPlanTitle: string;
+    enrollmentDate: string | null;
+    completionDate: string | null;
+    coursesTotal: number;
+    coursesCompleted: number;
+    courses: CourseCompletionRecord[];
+  },
   confidence: 'exact' | 'token',
   now: string,
 ): (string | number | null)[] {
@@ -82,6 +90,7 @@ export function completionUpsertParams(
     row.completionDate,
     row.coursesTotal,
     row.coursesCompleted,
+    JSON.stringify(row.courses),
     confidence,
     now,
   ];
@@ -103,12 +112,19 @@ function rowToHire(row: Record<string, unknown>): Omit<HireRecord, 'completions'
 }
 
 function rowToCompletion(row: Record<string, unknown>): PlanCompletionRecord {
+  let courses: CourseCompletionRecord[] = [];
+  try {
+    courses = JSON.parse((row.courses as string | null) ?? '[]');
+  } catch {
+    courses = [];
+  }
   return {
     learningPlanTitle: row.learning_plan_title as string,
     enrollmentDate: row.enrollment_date as string | null,
     completionDate: row.completion_date as string | null,
     coursesTotal: row.courses_total as number,
     coursesCompleted: row.courses_completed as number,
+    courses,
   };
 }
 

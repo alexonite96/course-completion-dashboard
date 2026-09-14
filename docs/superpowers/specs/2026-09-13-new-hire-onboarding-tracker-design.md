@@ -46,7 +46,7 @@ This is explicitly a **proof-of-concept phase**: matching and mapping are fully 
 
 **Dashboard (enablement team view)**
 - Stat tiles: Total New Hires, On Track, Behind (Overdue), Not Started — scoped to a date filter defaulting to **JS Date within the last 30 days**, adjustable to see full history.
-- Filterable/searchable/sortable table: one row per hire (name, role, manager, Week 1 status, Week 2 status, overall status).
+- Filterable/searchable/sortable table: one row per hire (name, role, manager, Week 1 status, Week 2 status). Each plan status cell expands in place to list that plan's individual courses and their completion.
 - Clicking a row opens a journey drill-down panel: JS Date, Week 1 plan (courses + completion), Week 2 plan (courses + completion), computed deadlines, current status — the "story" of that hire's onboarding.
 - CSV export of Overdue/Behind hires, grouped by Hiring Manager.
 
@@ -119,6 +119,7 @@ CREATE TABLE plan_completions (
   completion_date TEXT,             -- NULL = not complete
   courses_total INTEGER NOT NULL DEFAULT 0,
   courses_completed INTEGER NOT NULL DEFAULT 0,
+  courses TEXT NOT NULL DEFAULT '[]', -- JSON array of { name, completionDate }, one entry per course in the plan
   match_confidence TEXT NOT NULL,   -- 'exact' | 'token' — a row only exists here once a match is found
   updated_at TEXT NOT NULL,
   UNIQUE (new_hire_id, learning_plan_title)

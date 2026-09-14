@@ -8,8 +8,8 @@ const journey = (over: Partial<HireJourney['hire']> = {}, overallStatus: HireJou
     hiringManager: 'Maria Rivera', managerSlug: 'maria-rivera', country: 'Mexico',
     hireDate: '2026-09-01', jsDate: '2026-09-01', completions: [], ...over,
   },
-  week1: { learningPlanTitle: 'Jump Start - Week 1', status: 'overdue', deadline: '2026-09-08', enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0 },
-  week2: { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0 },
+  week1: { learningPlanTitle: 'Jump Start - Week 1', status: 'overdue', deadline: '2026-09-08', enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0, courses: [] },
+  week2: { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0, courses: [] },
   overallStatus,
 });
 

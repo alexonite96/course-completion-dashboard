@@ -29,6 +29,12 @@ export interface MasterParseResult {
   warnings: ParseWarning[];
 }
 
+/** One course within a learning plan, as it appears on a hire's completion record. */
+export interface CourseCompletionRecord {
+  name: string;
+  completionDate: string | null; // null = not yet completed
+}
+
 export interface CompletionRowInput {
   preferredName: string;
   lastName: string;
@@ -37,6 +43,7 @@ export interface CompletionRowInput {
   completionDate: string | null;
   coursesTotal: number;
   coursesCompleted: number;
+  courses: CourseCompletionRecord[];
 }
 
 export interface CompletionReportParseResult {
@@ -50,6 +57,7 @@ export interface PlanCompletionRecord {
   completionDate: string | null;
   coursesTotal: number;
   coursesCompleted: number;
+  courses: CourseCompletionRecord[];
 }
 
 export interface HireRecord {
@@ -106,6 +114,7 @@ export interface PlanJourney {
   completionDate: string | null;
   coursesTotal: number;
   coursesCompleted: number;
+  courses: CourseCompletionRecord[];
 }
 
 export interface HireJourney {

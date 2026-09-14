@@ -19,7 +19,7 @@ function buildJourney(
   today: string,
 ): PlanJourney {
   if (planTitle === null) {
-    return { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0 };
+    return { learningPlanTitle: null, status: 'unmapped', deadline: null, enrollmentDate: null, completionDate: null, coursesTotal: 0, coursesCompleted: 0, courses: [] };
   }
   const record = completions.find((c) => normalizeTitle(c.learningPlanTitle) === normalizeTitle(planTitle)) ?? null;
   const deadline = jsDate ? addDaysIso(jsDate, deadlineDays) : null;
@@ -41,6 +41,7 @@ function buildJourney(
     completionDate: record?.completionDate ?? null,
     coursesTotal: record?.coursesTotal ?? 0,
     coursesCompleted: record?.coursesCompleted ?? 0,
+    courses: record?.courses ?? [],
   };
 }
 
