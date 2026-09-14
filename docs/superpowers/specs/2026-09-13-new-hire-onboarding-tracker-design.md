@@ -143,11 +143,11 @@ All dashboard stats and status computations are derived at read time from `new_h
 |---|---|
 | `POST /api/onboarding/uploads/master` | Body: parsed master-file rows + JS LPs rows. Upserts `new_hires` by `ee_number`, upserts `learning_plan_defs`. |
 | `POST /api/onboarding/uploads/completion-report` | Body: parsed completion-report rows. Runs the name-matching tiers against `new_hires`, upserts `plan_completions`. Returns match summary (matched/unmatched counts). |
-| `GET /api/onboarding/hires?since=<date>` | All hires with computed status, for the dashboard table. |
-| `GET /api/onboarding/hires/:id` | One hire's full journey detail for the drill-down panel. |
+| `GET /api/onboarding/hires` | All hires with their raw completions, for the dashboard table. Status/deadline computation and the recency-window filter happen client-side (`src/lib/onboardingStatus.ts`) so a role-mapping edit takes effect without re-fetching. |
 | `GET /api/onboarding/manager/:slug` | Hires scoped to one manager, for the manager view. |
-| `GET /api/onboarding/mapping` / `POST /api/onboarding/mapping` | Read/edit the `role_plan_mapping` table. |
-| `GET /api/onboarding/export?status=overdue` | CSV, grouped by manager. |
+| `GET /api/onboarding/mapping` / `POST /api/onboarding/mapping` / `DELETE /api/onboarding/mapping/:id` | Read/add/remove `role_plan_mapping` rules. |
+
+The per-hire journey drill-down and the CSV export of overdue hires are both computed client-side from the already-fetched hire list (`src/lib/onboardingStatus.ts`, `src/lib/onboardingCsv.ts`) rather than as separate endpoints — consistent with how the parent app's dashboard already computes stats client-side.
 
 ## Upload flow
 
