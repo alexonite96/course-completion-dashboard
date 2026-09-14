@@ -1,4 +1,4 @@
-import type { HireRecord, LearningPlanDefInput, NewHireInput, PlanCompletionRecord, RolePlanMappingRule } from '../../shared/onboarding-types';
+import type { HireRecord, LearningPlanDefInput, ManagerTokenRecord, NewHireInput, PlanCompletionRecord, RolePlanMappingRule } from '../../shared/onboarding-types';
 import { stripDiacritics } from './nameMatch';
 
 export function slugify(name: string): string {
@@ -138,5 +138,28 @@ export function rowToMappingRule(row: Record<string, unknown>): RolePlanMappingR
     countryPattern: row.country_pattern as string | null,
     learningPlanTitle: row.learning_plan_title as string,
     priority: row.priority as number,
+  };
+}
+
+// A manager's access token is a random, unguessable value unrelated to their
+// name — unlike manager_slug (a plain slugified name), it can't be derived by
+// another manager guessing at a colleague's name. Generated once per distinct
+// manager on first upload and never regenerated (ON CONFLICT DO NOTHING), so a
+// link stays valid across re-uploads.
+export const UPSERT_MANAGER_TOKEN_SQL = `
+INSERT INTO manager_tokens (manager_slug, hiring_manager, token, created_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (manager_slug) DO NOTHING
+`;
+
+export function managerTokenUpsertParams(hiringManager: string, token: string, now: string): string[] {
+  return [slugify(hiringManager), hiringManager, token, now];
+}
+
+export function rowToManagerToken(row: Record<string, unknown>): ManagerTokenRecord {
+  return {
+    managerSlug: row.manager_slug as string,
+    hiringManager: row.hiring_manager as string,
+    token: row.token as string,
   };
 }

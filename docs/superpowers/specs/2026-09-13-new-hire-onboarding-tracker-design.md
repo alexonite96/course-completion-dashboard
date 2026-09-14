@@ -51,7 +51,8 @@ This is explicitly a **proof-of-concept phase**: matching and mapping are fully 
 - CSV export of Overdue/Behind hires, grouped by Hiring Manager.
 
 **Manager view**
-- A per-manager link (URL keyed by a slug derived from the `Hiring Manager` name in the master file) shows the same journey-focused UI, scoped to only that manager's hires. Read-only — no upload capability.
+- A per-manager link (URL keyed by a random, unguessable token generated once per manager and stored in a `manager_tokens` table — never derived from the `Hiring Manager` name, so one manager can't view a colleague's team by editing the URL) shows the same journey-focused UI, scoped to only that manager's hires. Read-only — no upload capability.
+- An in-app "Manager links" panel lists every manager with a one-click copy of their link, since the enablement team has no other way to hand these out.
 - No login/password. Explicitly a temporary stand-in until Cloudflare Access is available (see Out of Scope); the UI should say so.
 
 ### Non-functional
@@ -74,7 +75,7 @@ Extends the existing single Cloudflare Worker (Hono API + React/Vite/TS static a
 | Excel parsing | SheetJS (`xlsx`), in the browser | Same library already in use; new parsers for the two new file shapes |
 | API | Hono on the Worker | New endpoint group under `/api/onboarding/*` |
 | Database | Cloudflare D1 | New tables, described below |
-| Manager view | Same Worker, different route (`/onboarding/m/:slug`) | No auth middleware — filters by matching slug server-side |
+| Manager view | Same Worker, different route (`/onboarding/m/:token`) | No auth middleware — filters by resolving the opaque token to a manager server-side |
 
 ## Data model
 
@@ -86,7 +87,7 @@ CREATE TABLE new_hires (
   department TEXT,
   role TEXT,
   hiring_manager TEXT,
-  manager_slug TEXT,                -- derived from hiring_manager, for manager-view links
+  manager_slug TEXT,                -- derived from hiring_manager, used only to JOIN against manager_tokens
   country TEXT,
   hire_date TEXT,                   -- ISO 8601 or NULL
   js_date TEXT,                     -- ISO 8601 or NULL
@@ -133,21 +134,29 @@ CREATE TABLE onboarding_uploads (
   rows_matched INTEGER,
   rows_unmatched INTEGER
 );
+
+CREATE TABLE manager_tokens (
+  manager_slug TEXT PRIMARY KEY,    -- internal join key only, never sent to a manager
+  hiring_manager TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,       -- random (crypto.randomUUID()), unrelated to the name — this is the URL param
+  created_at TEXT NOT NULL
+);
 ```
 
-All dashboard stats and status computations are derived at read time from `new_hires` + `plan_completions` + `role_plan_mapping` — no stored aggregates to drift.
+All dashboard stats and status computations are derived at read time from `new_hires` + `plan_completions` + `role_plan_mapping` — no stored aggregates to drift. The one exception is `manager_tokens`: generated once per manager (`ON CONFLICT DO NOTHING` on `manager_slug`) so a shared link keeps working across re-uploads instead of being invalidated every time the master file is re-uploaded.
 
 ## API
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/onboarding/uploads/master` | Body: parsed master-file rows + JS LPs rows. Upserts `new_hires` by `ee_number`, upserts `learning_plan_defs`. |
+| `POST /api/onboarding/uploads/master` | Body: parsed master-file rows + JS LPs rows. Upserts `new_hires` by `ee_number`, upserts `learning_plan_defs`, and mints a `manager_tokens` row for any newly-seen manager. |
 | `POST /api/onboarding/uploads/completion-report` | Body: parsed completion-report rows. Runs the name-matching tiers against `new_hires`, upserts `plan_completions`. Returns match summary (matched/unmatched counts). |
-| `GET /api/onboarding/hires?since=<date>` | All hires with computed status, for the dashboard table. |
-| `GET /api/onboarding/hires/:id` | One hire's full journey detail for the drill-down panel. |
-| `GET /api/onboarding/manager/:slug` | Hires scoped to one manager, for the manager view. |
-| `GET /api/onboarding/mapping` / `POST /api/onboarding/mapping` | Read/edit the `role_plan_mapping` table. |
-| `GET /api/onboarding/export?status=overdue` | CSV, grouped by manager. |
+| `GET /api/onboarding/hires` | All hires with their raw completions, for the dashboard table. Status/deadline computation and the recency-window filter happen client-side (`src/lib/onboardingStatus.ts`) so a role-mapping edit takes effect without re-fetching. |
+| `GET /api/onboarding/manager/:token` | Hires scoped to one manager, resolved by looking up the opaque token in `manager_tokens` — never accepts a name or slug directly. |
+| `GET /api/onboarding/manager-tokens` | `{managerSlug, hiringManager, token}[]` — feeds the enablement-only "Manager links" panel. |
+| `GET /api/onboarding/mapping` / `POST /api/onboarding/mapping` / `DELETE /api/onboarding/mapping/:id` | Read/add/remove `role_plan_mapping` rules. |
+
+The per-hire journey drill-down and the CSV export of overdue hires are both computed client-side from the already-fetched hire list (`src/lib/onboardingStatus.ts`, `src/lib/onboardingCsv.ts`) rather than as separate endpoints — consistent with how the parent app's dashboard already computes stats client-side.
 
 ## Upload flow
 

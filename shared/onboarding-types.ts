@@ -114,3 +114,10 @@ export interface HireJourney {
   week2: PlanJourney;
   overallStatus: OverallStatus;
 }
+
+/** An opaque, unguessable per-manager access token — unrelated to the manager's name. */
+export interface ManagerTokenRecord {
+  managerSlug: string;
+  hiringManager: string;
+  token: string;
+}
