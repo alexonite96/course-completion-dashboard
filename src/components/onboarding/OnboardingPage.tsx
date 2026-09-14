@@ -7,6 +7,7 @@ import { buildHireJourney } from '../../lib/onboardingStatus';
 import { fetchHires, fetchMappingRules } from '../../onboarding-api';
 import HireDrawer from './HireDrawer';
 import HireTable from './HireTable';
+import ManagerLinksPanel from './ManagerLinksPanel';
 import MappingAdmin from './MappingAdmin';
 import OnboardingUploadModal from './OnboardingUploadModal';
 
@@ -19,6 +20,7 @@ export default function OnboardingPage() {
   const [loadError, setLoadError] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [mappingOpen, setMappingOpen] = useState(false);
+  const [managerLinksOpen, setManagerLinksOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -83,6 +85,9 @@ export default function OnboardingPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setManagerLinksOpen(true)} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Manager links
+          </button>
           <button onClick={() => setMappingOpen(true)} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Manage role mapping
           </button>
@@ -146,6 +151,9 @@ export default function OnboardingPage() {
       )}
       {mappingOpen && (
         <MappingAdmin rules={rules} onClose={() => setMappingOpen(false)} onChanged={() => void refresh()} />
+      )}
+      {managerLinksOpen && (
+        <ManagerLinksPanel hires={hires} onClose={() => setManagerLinksOpen(false)} />
       )}
     </div>
   );
