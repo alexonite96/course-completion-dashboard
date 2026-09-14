@@ -11,13 +11,10 @@ import {
   assembleHires,
   completionUpsertParams,
   hireUpsertParams,
-  managerTokenUpsertParams,
   planDefParams,
-  rowToManagerToken,
   rowToMappingRule,
   UPSERT_COMPLETION_SQL,
   UPSERT_HIRE_SQL,
-  UPSERT_MANAGER_TOKEN_SQL,
   UPSERT_PLAN_DEF_SQL,
 } from './db';
 import { matchPerson, type MatchCandidate } from './nameMatch';
@@ -48,8 +45,6 @@ app.post('/api/onboarding/uploads/master', async (c) => {
   const now = new Date().toISOString();
   const hireStmt = c.env.DB.prepare(UPSERT_HIRE_SQL);
   const planStmt = c.env.DB.prepare(UPSERT_PLAN_DEF_SQL);
-  const managerTokenStmt = c.env.DB.prepare(UPSERT_MANAGER_TOKEN_SQL);
-  const distinctManagers = [...new Set(body.hires.map((h) => h.hiringManager).filter((m): m is string => !!m))];
   const historyStmt = c.env.DB
     .prepare(
       `INSERT INTO onboarding_uploads (file_type, filename, uploaded_at, rows_processed, rows_matched, rows_unmatched)
@@ -60,9 +55,6 @@ app.post('/api/onboarding/uploads/master', async (c) => {
   await c.env.DB.batch([
     ...body.hires.map((h) => hireStmt.bind(...hireUpsertParams(h, now))),
     ...body.plans.map((p) => planStmt.bind(...planDefParams(p))),
-    // ON CONFLICT DO NOTHING: a manager's token, once generated, never changes —
-    // otherwise every re-upload would silently invalidate links already shared.
-    ...distinctManagers.map((m) => managerTokenStmt.bind(...managerTokenUpsertParams(m, crypto.randomUUID(), now))),
     historyStmt,
   ]);
 
@@ -136,18 +128,10 @@ app.get('/api/onboarding/hires', async (c) => {
   return c.json(hires);
 });
 
-app.get('/api/onboarding/manager/:token', async (c) => {
-  const token = c.req.param('token');
-  // The token is opaque and unrelated to the manager's name, unlike manager_slug —
-  // a manager can't guess a colleague's link by guessing their name.
-  const tokenRow = await c.env.DB
-    .prepare('SELECT manager_slug FROM manager_tokens WHERE token = ?')
-    .bind(token)
-    .first<{ manager_slug: string }>();
-  if (!tokenRow) return c.json([]);
-
+app.get('/api/onboarding/manager/:slug', async (c) => {
+  const slug = c.req.param('slug');
   const [hireRows, completionRows] = await Promise.all([
-    c.env.DB.prepare('SELECT * FROM new_hires WHERE manager_slug = ? ORDER BY js_date DESC, full_name').bind(tokenRow.manager_slug).all(),
+    c.env.DB.prepare('SELECT * FROM new_hires WHERE manager_slug = ? ORDER BY js_date DESC, full_name').bind(slug).all(),
     c.env.DB.prepare('SELECT * FROM plan_completions').all(),
   ]);
   const hireIds = new Set(hireRows.results.map((r) => r.id));
@@ -155,11 +139,6 @@ app.get('/api/onboarding/manager/:token', async (c) => {
     .filter((r) => hireIds.has(r.new_hire_id as number));
   const hires = assembleHires(hireRows.results as Record<string, unknown>[], relevantCompletions);
   return c.json(hires);
-});
-
-app.get('/api/onboarding/manager-tokens', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT manager_slug, hiring_manager, token FROM manager_tokens ORDER BY hiring_manager').all();
-  return c.json(results.map((r) => rowToManagerToken(r as Record<string, unknown>)));
 });
 
 app.get('/api/onboarding/mapping', async (c) => {

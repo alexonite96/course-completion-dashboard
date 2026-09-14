@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { HireRecord } from '../../../shared/onboarding-types';
-import { fetchManagerTokens } from '../../onboarding-api';
 
 interface Props {
   hires: HireRecord[];
@@ -13,29 +12,13 @@ interface ManagerRow {
   hireCount: number;
 }
 
-function managerLinkUrl(token: string): string {
-  return `${window.location.origin}/onboarding/m/${token}`;
+function managerLinkUrl(managerSlug: string): string {
+  return `${window.location.origin}/onboarding/m/${managerSlug}`;
 }
 
 export default function ManagerLinksPanel({ hires, onClose }: Props) {
-  const [tokensBySlug, setTokensBySlug] = useState<Map<string, string>>(new Map());
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchManagerTokens()
-      .then((records) => {
-        if (cancelled) return;
-        setTokensBySlug(new Map(records.map((r) => [r.managerSlug, r.token])));
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load manager links.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Derived from ALL hires (not the dashboard's recency-filtered view), so a manager
   // whose hires have all aged out of the default 30-day window still gets a link.
@@ -50,10 +33,11 @@ export default function ManagerLinksPanel({ hires, onClose }: Props) {
     return [...byManager.values()].sort((a, b) => a.hiringManager.localeCompare(b.hiringManager));
   }, [hires]);
 
-  const copyLink = async (managerSlug: string, token: string) => {
+  const copyLink = async (managerSlug: string) => {
     setError('');
+    const url = managerLinkUrl(managerSlug);
     try {
-      await navigator.clipboard.writeText(managerLinkUrl(token));
+      await navigator.clipboard.writeText(url);
       setCopiedSlug(managerSlug);
       setTimeout(() => setCopiedSlug((current) => (current === managerSlug ? null : current)), 2000);
     } catch {
@@ -67,9 +51,8 @@ export default function ManagerLinksPanel({ hires, onClose }: Props) {
       <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-4 text-lg font-bold text-slate-800">Manager links</h2>
         <p className="mb-4 text-sm text-slate-500">
-          Each link shows only that manager's own new hires — no login required. The link is a random, unguessable
-          token unrelated to the manager's name, so one manager can't view another's team by editing the URL. Share a
-          manager's link with them directly; this is a temporary stand-in until real sign-in is available.
+          Each link shows only that manager's own new hires — no login required. Share a manager's link with them directly;
+          this is a temporary stand-in until real sign-in is available.
         </p>
 
         <table className="w-full text-sm">
@@ -82,27 +65,21 @@ export default function ManagerLinksPanel({ hires, onClose }: Props) {
             </tr>
           </thead>
           <tbody>
-            {managers.map((m) => {
-              const token = tokensBySlug.get(m.managerSlug);
-              return (
-                <tr key={m.managerSlug} className="border-b border-slate-100">
-                  <td className="py-2 font-medium text-slate-800">{m.hiringManager}</td>
-                  <td className="py-2 text-slate-500">{m.hireCount}</td>
-                  <td className="max-w-xs truncate py-2 text-xs text-slate-400">
-                    {token ? managerLinkUrl(token) : 'Re-upload the master file to generate a link'}
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      onClick={() => token && void copyLink(m.managerSlug, token)}
-                      disabled={!token}
-                      className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {copiedSlug === m.managerSlug ? 'Copied!' : 'Copy link'}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {managers.map((m) => (
+              <tr key={m.managerSlug} className="border-b border-slate-100">
+                <td className="py-2 font-medium text-slate-800">{m.hiringManager}</td>
+                <td className="py-2 text-slate-500">{m.hireCount}</td>
+                <td className="max-w-xs truncate py-2 text-xs text-slate-400">{managerLinkUrl(m.managerSlug)}</td>
+                <td className="py-2 text-right">
+                  <button
+                    onClick={() => void copyLink(m.managerSlug)}
+                    className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    {copiedSlug === m.managerSlug ? 'Copied!' : 'Copy link'}
+                  </button>
+                </td>
+              </tr>
+            ))}
             {managers.length === 0 && (
               <tr><td colSpan={4} className="py-4 text-center text-slate-400">No managers on file yet.</td></tr>
             )}

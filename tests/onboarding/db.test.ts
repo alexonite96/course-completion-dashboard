@@ -7,18 +7,14 @@ import {
   assembleHires,
   completionUpsertParams,
   hireUpsertParams,
-  managerTokenUpsertParams,
   planDefParams,
-  rowToManagerToken,
   slugify,
   UPSERT_COMPLETION_SQL,
   UPSERT_HIRE_SQL,
-  UPSERT_MANAGER_TOKEN_SQL,
   UPSERT_PLAN_DEF_SQL,
 } from '../../worker/onboarding/db';
 
-const migration = readFileSync('migrations/0002_onboarding.sql', 'utf8')
-  + readFileSync('migrations/0003_manager_tokens.sql', 'utf8');
+const migration = readFileSync('migrations/0002_onboarding.sql', 'utf8');
 
 const hire = (over: Partial<NewHireInput> = {}): NewHireInput => ({
   eeNumber: '100', fullName: 'Jane Cooper', department: 'Services', role: 'Services Consultant',
@@ -96,40 +92,6 @@ describe('plan_completions upsert', () => {
     expect(stored).toHaveLength(1);
     expect(stored[0].completion_date).toBe('2026-09-06');
     expect(stored[0].courses_completed).toBe(5);
-  });
-});
-
-describe('manager_tokens upsert', () => {
-  let db: Database.Database;
-  beforeEach(() => {
-    db = new Database(':memory:');
-    db.exec(migration);
-  });
-
-  const upsertToken = (hiringManager: string, token: string, now = '2026-09-13T00:00:00Z') =>
-    db.prepare(UPSERT_MANAGER_TOKEN_SQL).run(...(managerTokenUpsertParams(hiringManager, token, now) as never[]));
-
-  it('inserts a token derived from the manager slug, not the name', () => {
-    upsertToken('María Rivera', 'tok-abc-123');
-    const stored = db.prepare('SELECT * FROM manager_tokens').all() as Record<string, unknown>[];
-    expect(stored).toHaveLength(1);
-    expect(stored[0].manager_slug).toBe('maria-rivera');
-    expect(stored[0].hiring_manager).toBe('María Rivera');
-    expect(stored[0].token).toBe('tok-abc-123');
-  });
-
-  it('never regenerates an existing token for the same manager (links must stay stable across re-uploads)', () => {
-    upsertToken('Maria Rivera', 'first-token');
-    upsertToken('Maria Rivera', 'second-token', '2026-09-14T00:00:00Z');
-    const stored = db.prepare('SELECT * FROM manager_tokens').all() as Record<string, unknown>[];
-    expect(stored).toHaveLength(1);
-    expect(stored[0].token).toBe('first-token');
-  });
-
-  it('rowToManagerToken maps a raw row to the camelCase shape', () => {
-    upsertToken('Kevin Tan', 'tok-xyz');
-    const row = db.prepare('SELECT manager_slug, hiring_manager, token FROM manager_tokens').get() as Record<string, unknown>;
-    expect(rowToManagerToken(row)).toEqual({ managerSlug: 'kevin-tan', hiringManager: 'Kevin Tan', token: 'tok-xyz' });
   });
 });
 

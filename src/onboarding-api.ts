@@ -2,7 +2,6 @@ import type {
   CompletionRowInput,
   CompletionUploadResponse,
   HireRecord,
-  ManagerTokenRecord,
   MasterParseResult,
   MasterUploadResponse,
   RolePlanMappingInput,
@@ -33,10 +32,8 @@ export const uploadCompletionReport = (body: { filename: string; rows: Completio
 
 export const fetchHires = () => fetch('/api/onboarding/hires').then((r) => json<HireRecord[]>(r));
 
-export const fetchManagerHires = (token: string) =>
-  fetch(`/api/onboarding/manager/${encodeURIComponent(token)}`).then((r) => json<HireRecord[]>(r));
-
-export const fetchManagerTokens = () => fetch('/api/onboarding/manager-tokens').then((r) => json<ManagerTokenRecord[]>(r));
+export const fetchManagerHires = (slug: string) =>
+  fetch(`/api/onboarding/manager/${encodeURIComponent(slug)}`).then((r) => json<HireRecord[]>(r));
 
 export const fetchMappingRules = () => fetch('/api/onboarding/mapping').then((r) => json<RolePlanMappingRule[]>(r));
 

@@ -7,7 +7,7 @@ import HireTable from './HireTable';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-export default function ManagerView({ token }: { token: string }) {
+export default function ManagerView({ slug }: { slug: string }) {
   const [hires, setHires] = useState<HireRecord[]>([]);
   const [rules, setRules] = useState<RolePlanMappingRule[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -16,13 +16,13 @@ export default function ManagerView({ token }: { token: string }) {
   const refresh = useCallback(async () => {
     try {
       setError('');
-      const [h, r] = await Promise.all([fetchManagerHires(token), fetchMappingRules()]);
+      const [h, r] = await Promise.all([fetchManagerHires(slug), fetchMappingRules()]);
       setHires(h);
       setRules(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your team.');
     }
-  }, [token]);
+  }, [slug]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

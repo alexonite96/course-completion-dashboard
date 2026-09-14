@@ -8,6 +8,6 @@ const managerMatch = /^\/onboarding\/m\/([^/]+)/.exec(window.location.pathname);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {managerMatch ? <ManagerView token={managerMatch[1]} /> : <App />}
+    {managerMatch ? <ManagerView slug={managerMatch[1]} /> : <App />}
   </StrictMode>,
 );
